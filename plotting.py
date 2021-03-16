@@ -110,7 +110,7 @@ def season_cycle_plotter(gpsro_cycles, ERA_5_cycles, waccm6_cycels, ccsm_cycles,
     axs[0,0].plot(lt_hours, ERA_5_cycles[-1] - np.nanmean(ERA_5_cycles[-1]), linewidth=2, color='firebrick', label='ERA-5', marker="s")
     axs[0,0].plot(lt_hours, waccm6_cycels[-1] - np.nanmean(waccm6_cycels[-1]), linewidth=2, color='royalblue', label='WACCM6', marker="^")
     axs[0,0].plot(lt_hours, ccsm_cycles[-1] - np.nanmean(ccsm_cycles[-1]), linewidth=2, color='seagreen', label='CCM3', marker='o')
-    fig.text(0.12, 0.97, '{season_string}'.format(season_string=season_string), fontsize=30, verticalalignment='top')
+    fig.text(0.14, 0.85, '{season_string}'.format(season_string=season_string), fontsize=30, verticalalignment='top')
 
     fig.legend(bbox_to_anchor=(.2,0.87,.4,0.2), loc="lower left", mode="expand",
                borderaxespad=0, ncol=4, frameon=False, prop={'size': 15})
@@ -742,3 +742,5 @@ def land_ocean_plotting(nh_land_gpsro_djf, nh_land_era5_djf, nh_land_waccm6_djf,
     axs[1,7].set_xlim(1.5,22.5)
     axs[1,7].set_yticklabels([])
     axs[1,7].set_xlabel('LTH', fontsize=15)
+    
+    return(fig)
