@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import numpy.ma as ma
+from scipy import stats
 import matplotlib.pyplot as plt
 from matplotlib.ticker import (MultipleLocator, FormatStrFormatter, AutoMinorLocator)
 import cartopy.crs as ccrs
@@ -99,9 +100,59 @@ def tropical_land_ocean(diurnal_cycles):
     
     return(tropical_land_sh, tropical_ocean_sh, tropical_land_nh, tropical_ocean_nh)
 
+def lat_bin_stats(gpsro_cycles, ERA_5_cycles, waccm6_cycels, ccsm_cycles):
+    #ERA5
+    era5_mse = [np.nanmean((gpsro_cycles[i] - ERA_5_cycles[i])**2) for i in range(0,10)]
+    era5_r = [stats.pearsonr(gpsro_cycles[i], ERA_5_cycles[i])[0] for i in range(0,10)]
+    
+    #WACCM6
+    waccm6_mse = [np.nanmean((gpsro_cycles[i] - waccm6_cycels[i])**2) for i in range(0,10)]
+    waccm6_r = [stats.pearsonr(gpsro_cycles[i], waccm6_cycels[i])[0] for i in range(0,10)]
+    
+    #CCM3
+    ccm_mse = [np.nanmean((gpsro_cycles[i] - ccsm_cycles[i])**2) for i in range(0,10)]
+    ccm_r = [stats.pearsonr(gpsro_cycles[i], ccsm_cycles[i])[0] for i in range(0,10)]
+    
+    lats = [-75, -50, -30, -15, -5, 5, 15, 30, 50, 75]
+    
+    fig, axs = plt.subplots(1, 2, figsize=(6,8))
+    axs[0].plot(era5_mse, lats, linewidth=2, color='firebrick',  marker="s")
+    axs[0].plot(waccm6_mse, lats, linewidth=2, color='royalblue',  marker="^")
+    axs[0].plot(ccm_mse, lats, linewidth=2, color='seagreen',  marker='o')
+    axs[0].set_xlim(0, 0.02)
+    axs[0].set_title('Mean Squared Error \n(MSE)', fontsize=14)
+    axs[0].set_ylabel('Latitude of Midpoint', fontsize=14)
+    
+    
+    axs[1].plot(era5_r, lats, linewidth=2, color='firebrick',  marker="s")
+    axs[1].plot(waccm6_r, lats, linewidth=2, color='royalblue',  marker="^")
+    axs[1].plot(ccm_r, lats, linewidth=2, color='seagreen',  marker='o')
+    axs[1].set_xlim(0, 1)
+    axs[0].yaxis.set_minor_locator(MultipleLocator(10))
+    axs[0].xaxis.set_minor_locator(MultipleLocator(0.001))
+    axs[1].yaxis.set_minor_locator(MultipleLocator(10))
+    axs[1].xaxis.set_minor_locator(MultipleLocator(.1))
+    axs[1].set_title('Correlation Coefficient \n(r)', fontsize=14)
+
 
 
 def season_cycle_plotter(gpsro_cycles, ERA_5_cycles, waccm6_cycels, ccsm_cycles, season_string):
+    lat_bin_stats(gpsro_cycles, ERA_5_cycles, waccm6_cycels, ccsm_cycles)
+    
+    
+    mse_weights = np.cos(np.deg2rad([-75, -50, -30, -15, -5, 5, 15, 30, 50, 75]))
+    era5_mse = np.sum((np.nanmean((ERA_5_cycles - gpsro_cycles)**2, axis=1)*mse_weights))/np.sum(mse_weights)
+    era5_r = np.sum([stats.pearsonr(ERA_5_cycles[i], gpsro_cycles[i])[0] 
+                     for i in range(0, len(ERA_5_cycles))]*mse_weights)/np.sum(mse_weights)
+    waccm6_mse = np.sum((np.nanmean((waccm6_cycels - gpsro_cycles)**2, axis=1)*mse_weights))/np.sum(mse_weights)
+    waccm6_r = np.sum([stats.pearsonr(waccm6_cycels[i], gpsro_cycles[i])[0] 
+                     for i in range(0, len(waccm6_cycels))]*mse_weights)/np.sum(mse_weights)
+    ccsm_mse = np.sum((np.nanmean((ccsm_cycles - gpsro_cycles)**2, axis=1)*mse_weights))/np.sum(mse_weights)
+    ccsm_r = np.sum([stats.pearsonr(ccsm_cycles[i], gpsro_cycles[i])[0] 
+                     for i in range(0, len(ccsm_cycles))]*mse_weights)/np.sum(mse_weights)
+    print('Global stats chart\n================ \nERA5: ', np.around(era5_mse, 5), np.around(era5_r, 5), 
+          '\nWACCM6: ', np.around(waccm6_mse, 5), np.around(waccm6_r, 5), 
+          '\nCCM3: ', np.around(ccsm_mse, 5), np.around(ccsm_r, 5))
     fig, axs = plt.subplots(2, 5, figsize=(18, 8))
     lt_hours = np.linspace(1.5, 22.5, 8)
     plt.suptitle(' ')
@@ -449,6 +500,34 @@ def seasonal_colocation_plotter(ERA_5_cycles, ERA_5_colocation_cycles, ERA_5_col
     
     return(fig)
 
+def land_ocean_stats(land_ocean_chart):
+    names = ['NH Land DJF', 'NH Ocean DJF', 'NH Land MAM', 'NH Ocean MAM',
+             'NH Land JJA', 'NH Ocean JJA', 'NH Land SON', 'NH Ocean SON', 
+             'SH Land DJF','SH Ocean DJF', 'SH Land MAM', 'SH Ocean MAM', 
+             'SH Land JJA', 'SH Ocean JJA', 'SH Land SON','SH Ocean SON']
+    
+    stats_holder = []
+    for idx, set_of_dcs in enumerate(land_ocean_chart):
+        gpsro_cycles = np.array(set_of_dcs[0])
+        ERA_5_cycles = np.array(set_of_dcs[1])
+        waccm6_cycels = np.array(set_of_dcs[2])
+        ccsm_cycles = np.array(set_of_dcs[3])
+        
+        era5_mse = np.nanmean((ERA_5_cycles - gpsro_cycles)**2)
+        era5_r = stats.pearsonr(ERA_5_cycles, gpsro_cycles)[0]
+        waccm6_mse = np.nanmean((waccm6_cycels - gpsro_cycles)**2)
+        waccm6_r = stats.pearsonr(waccm6_cycels, gpsro_cycles)[0] 
+        ccsm_mse = np.nanmean((ccsm_cycles - gpsro_cycles)**2)
+        ccsm_r = stats.pearsonr(ccsm_cycles, gpsro_cycles)[0] 
+        print('{name_string}\n========= \nERA5: '.format(name_string = names[idx]), 
+              np.around(era5_mse, 5), np.around(era5_r, 5), 
+              '\nWACCM6: ', np.around(waccm6_mse, 5), np.around(waccm6_r, 5), 
+              '\nCCM3: ', np.around(ccsm_mse, 5), np.around(ccsm_r, 5), '\n')
+        
+        stats_instance = [[era5_mse, era5_r], [waccm6_mse, waccm6_r], [ccsm_mse, ccsm_r]]
+        stats_holder.append(stats_instance)
+    return(stats_holder)
+
 def land_ocean_plotting(nh_land_gpsro_djf, nh_land_era5_djf, nh_land_waccm6_djf, nh_land_ccm3_djf, 
                         nh_ocean_gpsro_djf, nh_ocean_era5_djf, nh_ocean_waccm6_djf, nh_ocean_ccm3_djf,
                         nh_land_gpsro_mam, nh_land_era5_mam, nh_land_waccm6_mam, nh_land_ccm3_mam, 
@@ -466,6 +545,26 @@ def land_ocean_plotting(nh_land_gpsro_djf, nh_land_era5_djf, nh_land_waccm6_djf,
                         sh_land_gpsro_son, sh_land_era5_son, sh_land_waccm6_son, sh_land_ccm3_son, 
                         sh_ocean_gpsro_son, sh_ocean_era5_son, sh_ocean_waccm6_son, sh_ocean_ccm3_son
                         ):
+    
+    land_ocean_chart = [[nh_land_gpsro_djf, nh_land_era5_djf, nh_land_waccm6_djf, nh_land_ccm3_djf], 
+                        [nh_ocean_gpsro_djf, nh_ocean_era5_djf, nh_ocean_waccm6_djf, nh_ocean_ccm3_djf],
+                        [nh_land_gpsro_mam, nh_land_era5_mam, nh_land_waccm6_mam, nh_land_ccm3_mam], 
+                        [nh_ocean_gpsro_mam, nh_ocean_era5_mam, nh_ocean_waccm6_mam, nh_ocean_ccm3_mam],
+                        [nh_land_gpsro_jja, nh_land_era5_jja, nh_land_waccm6_jja, nh_land_ccm3_jja], 
+                        [nh_ocean_gpsro_jja, nh_ocean_era5_jja, nh_ocean_waccm6_jja, nh_ocean_ccm3_jja],
+                        [nh_land_gpsro_son, nh_land_era5_son, nh_land_waccm6_son, nh_land_ccm3_son], 
+                        [nh_ocean_gpsro_son, nh_ocean_era5_son, nh_ocean_waccm6_son, nh_ocean_ccm3_son],
+                        [sh_land_gpsro_djf, sh_land_era5_djf, sh_land_waccm6_djf, sh_land_ccm3_djf], 
+                        [sh_ocean_gpsro_djf, sh_ocean_era5_djf, sh_ocean_waccm6_djf, sh_ocean_ccm3_djf],
+                        [sh_land_gpsro_mam, sh_land_era5_mam, sh_land_waccm6_mam, sh_land_ccm3_mam], 
+                        [sh_ocean_gpsro_mam, sh_ocean_era5_mam, sh_ocean_waccm6_mam, sh_ocean_ccm3_mam],
+                        [sh_land_gpsro_jja, sh_land_era5_jja, sh_land_waccm6_jja, sh_land_ccm3_jja], 
+                        [sh_ocean_gpsro_jja, sh_ocean_era5_jja, sh_ocean_waccm6_jja, sh_ocean_ccm3_jja],
+                        [sh_land_gpsro_son, sh_land_era5_son, sh_land_waccm6_son, sh_land_ccm3_son], 
+                        [sh_ocean_gpsro_son, sh_ocean_era5_son, sh_ocean_waccm6_son, sh_ocean_ccm3_son]]
+    
+    stats_holder = land_ocean_stats(land_ocean_chart)
+    
     fig, axs = plt.subplots(2, 8, figsize=(18, 7))
     lt_hours = np.linspace(1.5, 22.5, 8)
     
@@ -743,4 +842,4 @@ def land_ocean_plotting(nh_land_gpsro_djf, nh_land_era5_djf, nh_land_waccm6_djf,
     axs[1,7].set_yticklabels([])
     axs[1,7].set_xlabel('LTH', fontsize=15)
     
-    return(fig)
+    return(fig, stats_holder)
